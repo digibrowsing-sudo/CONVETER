@@ -6,15 +6,22 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test test/"
+    "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
+    "bullmq": "^5.80.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "helmet": "^8.0.0"
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.11.1",
+    "multer": "^2.2.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
   }
 }
