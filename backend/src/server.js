@@ -46,6 +46,8 @@ function createApp({ config = defaultConfig, logger = defaultLogger, jobstore, q
     res.json({ status: 'ok' });
   });
 
+  // TODO(phase-6): JWT auth + anonymous free tier (5 conversions/day per IP,
+  // tracked in Redis) and a priority queue for premium users.
   app.use('/api/convert', createRateLimiter(config), createConvertRouter({ config, jobstore, queue, logger }));
   app.use('/api/status', createStatusRouter({ jobstore }));
   app.use('/api/download', createDownloadRouter({ config, jobstore }));

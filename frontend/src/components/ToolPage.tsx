@@ -100,6 +100,7 @@ export default function ToolPage({
 
   const canConvert = files.length >= minFiles && phase !== 'working';
 
+  // TODO(phase-6): render <AdSlot /> above and below the tool card.
   return (
     <div className="mx-auto max-w-2xl">
       <nav className="mb-6 text-sm">

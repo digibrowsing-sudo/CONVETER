@@ -100,11 +100,43 @@ Notes:
 - Rate limiting per IP on the conversion endpoint.
 - Uploaded and converted files are automatically deleted after `FILE_TTL_MINUTES`.
 
+## Deployment (Ubuntu VPS with Nginx + PM2)
+
+1. Clone the repo to `/var/www/fileforge`.
+2. Install system dependencies: `sudo bash scripts/install-deps.sh`
+   (LibreOffice, Ghostscript, qpdf, Redis, pdf2docx).
+3. Configure: `cp .env.example .env` and adjust if needed.
+4. Install and build:
+   ```bash
+   cd /var/www/fileforge/frontend && npm ci && npm run build
+   cd /var/www/fileforge/backend && npm ci --omit=dev
+   ```
+5. Start with PM2 (1 API process + 2 worker processes):
+   ```bash
+   cd /var/www/fileforge
+   pm2 start ecosystem.config.js
+   pm2 save
+   pm2 startup   # follow the printed command so PM2 survives reboots
+   ```
+6. Configure Nginx: copy `nginx.conf.example` to
+   `/etc/nginx/sites-available/fileforge`, set `server_name`, enable the site,
+   `nginx -t && sudo systemctl reload nginx`.
+7. When a domain is pointed at the server, run `sudo certbot --nginx` for SSL.
+8. Later deployments: `bash scripts/deploy.sh` (pull → build → restart PM2).
+
 ## Project status
 
 - [x] Phase 1 — Scaffold + repo setup
-- [ ] Phase 2 — Backend core (API + queue)
-- [ ] Phase 3 — Conversion workers
-- [ ] Phase 4 — Frontend
-- [ ] Phase 5 — Deployment (VPS)
-- [ ] Phase 6 — Future: auth, payments, premium tiers (not built yet)
+- [x] Phase 2 — Backend core (API + queue)
+- [x] Phase 3 — Conversion workers
+- [x] Phase 4 — Frontend
+- [x] Phase 5 — Deployment (VPS)
+- [ ] Phase 6 — Future (not built yet, TODO markers only):
+  - User accounts (JWT auth) + free tier: 5 conversions/day for anonymous
+    users (track by IP in Redis), unlimited for registered
+  - Razorpay subscription integration (₹199/month premium tier)
+  - Premium features: batch conversion, 200MB files, no daily limit,
+    priority queue
+  - AdSense slots on tool pages (`<AdSlot />` component placeholder)
+  - OCR tool (OCRmyPDF) and FFmpeg audio/video tools
+  - Usage analytics dashboard
