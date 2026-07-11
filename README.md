@@ -66,6 +66,31 @@ All limits and paths live in `.env` (see `.env.example`) and are read in one pla
 | `RATE_LIMIT_WINDOW_MIN` | `15` | Rate-limit window (minutes) |
 | `STORAGE_PATH` | `./storage` | Where uploads/converted files are kept |
 
+## Conversion test results
+
+Each worker was exercised end-to-end (upload → queue → worker → download)
+against a live Redis with sample files:
+
+| Tool | Input | Result |
+|---|---|---|
+| `doc-to-pdf` | `sample.docx` (5.0 KB) | ✅ valid PDF, 9.5 KB |
+| `pdf-to-word` | 1-page text PDF | ✅ valid `Microsoft Word 2007+` DOCX |
+| `pdf-to-word` | corrupt PDF | ✅ fails gracefully: “This PDF could not be converted — it may be scanned or image-based.” |
+| `compress-pdf` | 4-page PDF, `/ebook` preset | ✅ output PDF, before/after sizes reported |
+| `merge-pdf` | two 4-page PDFs | ✅ 8-page merged PDF, upload order preserved |
+| `split-pdf` | pages `1-3,7` style range | ✅ single 2-page PDF for one range |
+| `split-pdf` | no range given | ✅ one PDF per page, zipped |
+| `image-convert` | PNG → WebP | ✅ valid WebP, EXIF orientation preserved |
+
+Notes:
+
+- LibreOffice must include the Writer/Calc/Impress components — the full
+  `libreoffice` package installed by `scripts/install-deps.sh` covers this.
+  `libreoffice-core` alone fails with “source file could not be loaded”.
+- **HEIC input:** sharp needs libheif. If HEIC conversions fail on the VPS, run
+  `sudo apt install -y libheif-dev` and rebuild sharp
+  (`cd backend && npm rebuild sharp`).
+
 ## Security
 
 - No shell string interpolation with filenames — all external commands run via

@@ -9,6 +9,7 @@
     "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "bullmq": "^5.80.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -16,7 +17,8 @@
     "express-rate-limit": "^7.5.1",
     "helmet": "^8.0.0",
     "ioredis": "^5.11.1",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "sharp": "^0.33.5"
   },
   "engines": {
     "node": ">=20"
