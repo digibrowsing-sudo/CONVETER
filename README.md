@@ -1,142 +1,166 @@
-# FileForge — Self-Hosted File Converter
+# FileForge
 
-A self-hosted file conversion web application (like iLovePDF). Converts documents, images,
-and PDFs between formats. Built to run on an Ubuntu VPS with Nginx + PM2, monetization-ready:
-each tool on its own URL, rate limiting, and file limits from day one.
+A browser-based file conversion suite with a specialised module for Indian
+financial documents. Built to the
+[FileForge Master Build Specification](#specification) and self-hosted on a
+small VPS.
+
+Two products share one codebase, and the split is deliberate:
+
+- **The generic converter** — merge, split, compress, rotate, Office↔PDF. It
+  will not win on head-term SEO and is not meant to. It proves the engineering,
+  provides the trust surface, and costs almost nothing to run.
+- **The finance module** — bank statement → Excel or Tally CSV, GST invoice
+  extraction, Form 26AS parsing. Thin search competition, real willingness to
+  pay. This is the business.
+
+The first must never consume the budget, server capacity or attention the second
+needs. Every limit in the code follows from that.
+
+## What makes it different
+
+**Most tools never upload your file.** Nine of the twenty-one run entirely in
+the browser through WebAssembly — merging a PDF sends nothing anywhere. Open the
+network tab and check; that is a claim iLovePDF, Smallpdf, Adobe and Nitro
+cannot make.
+
+Everything else is deleted within an hour, or within fifteen minutes for
+financial documents, or the instant it is downloaded.
 
 ## Tools
 
-| Tool | Route | Engine |
-|---|---|---|
-| Word/Office → PDF | `/word-to-pdf` | LibreOffice (headless) |
-| PDF → Word | `/pdf-to-word` | pdf2docx (Python) |
-| Compress PDF | `/compress-pdf` | Ghostscript |
-| Merge PDF | `/merge-pdf` | qpdf |
-| Split PDF | `/split-pdf` | qpdf |
-| Image converter | `/image-converter` | sharp |
+Defined once in [`shared/tools.json`](shared/tools.json), which drives routes,
+the homepage, the footer link web, the sitemap, SEO metadata and the API's
+allow-list.
 
-## Tech stack
+| Tier | Runs | Max file | Tools |
+|---|---|---|---|
+| **C** | Browser (WASM) | 100 MB | Merge, Split, Extract pages, Remove pages, Organise, Rotate, JPG→PDF, PDF→JPG, Image converter |
+| **S1** | Server, fast | 25 MB | Compress, Protect (AES-256), Unlock, Repair |
+| **S2** | Server, heavy | 25 MB | Word→PDF, Excel→PDF, PowerPoint→PDF, PDF→Word |
+| **F** | Finance module | 15 MB | Bank statement→Excel, Bank statement→Tally CSV, GST invoice→Excel, Form 26AS→Excel |
 
-- **Frontend:** React 18 + Vite + TypeScript, TailwindCSS
-- **Backend:** Node.js 20+ + Express, BullMQ + Redis job queue
-- **Conversion:** LibreOffice, Ghostscript, qpdf, pdf2docx, sharp
-- **Deployment:** PM2 + Nginx on Ubuntu
+Bank statements have dedicated parsers for **HDFC, ICICI, SBI and Kotak**, plus
+a generic reader for other ruled-table formats. Every extraction is scored on
+three independent signals — structural completeness, whether the running balance
+is arithmetically consistent, and whether the computed closing balance matches
+the printed one — and rows that fail are highlighted in the sheet itself.
+
+## Architecture
+
+```
+Browser ─┬─ Tier C engines (pdf-lib, pdf.js, Canvas) ── never touch the server
+         │
+         └─ HTTPS ── Nginx ─┬─ static, prerendered pages
+                            └─ /api/v1 ── Express
+                                            ├── Redis (BullMQ, rate limits, job state)
+                                            ├── worker-doc      concurrency 1
+                                            └── worker-finance  concurrency 1
+```
+
+Two queues, not one: a finance job must never wait behind a 90-second
+PowerPoint render. Concurrency is 1 on each because the box has 2 vCPU shared
+with other systems, one of which belongs to a paying client.
+
+**Stack.** React 18 + Vite + TypeScript (strict) on the front; Node 20 +
+Express + BullMQ + Redis on the back; LibreOffice, Ghostscript, qpdf, poppler,
+pdf2docx, pdfplumber and openpyxl as engines; PM2 and Nginx to run it.
 
 ## Local development
 
 ### Prerequisites
 
 - Node.js 20+
-- Redis running on `127.0.0.1:6379` (`sudo apt install redis-server`)
-- Conversion binaries (only needed for the tools you exercise):
-  `sudo apt install libreoffice --no-install-recommends ghostscript qpdf`
-  and `pip3 install pdf2docx`
+- Redis on `127.0.0.1:6379`
+- Conversion binaries, for the server-side tools only:
+  `./scripts/install-deps.sh` installs everything including the Indic fonts that
+  keep Hindi, Gujarati and Marathi documents from rendering as empty boxes.
 
-On a fresh Ubuntu machine you can run `scripts/install-deps.sh` to install everything.
+The Tier C tools need none of this — they run in the browser.
 
-### Setup
+### Run it
 
 ```bash
-# 1. Environment
-cp .env.example .env
+cp .env.example .env          # DOWNLOAD_SIGNING_SECRET is generated in dev
+cd backend  && npm install
+cd ../frontend && npm install
 
-# 2. Backend (API on http://localhost:8095)
-cd backend
-npm install
-npm run dev
-
-# 3. Frontend (dev server on http://localhost:5173, proxies /api to the backend)
-cd frontend
-npm install
-npm run dev
+# three terminals
+cd backend   && npm run dev
+cd backend   && npm run worker:doc
+cd frontend  && npm run dev            # http://localhost:5173
 ```
 
-### Configuration
+The dev server proxies `/api` to port 8095. Add `npm run worker:finance` when
+working on the finance module.
 
-All limits and paths live in `.env` (see `.env.example`) and are read in one place,
-`backend/src/config.js` — no magic numbers in code.
+### Tests
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `PORT` | `8095` | API port |
-| `REDIS_URL` | `redis://127.0.0.1:6379` | Redis connection |
-| `MAX_FILE_SIZE_MB` | `50` | Upload size cap |
-| `FILE_TTL_MINUTES` | `60` | Uploaded/converted files auto-delete after this |
-| `RATE_LIMIT_MAX` | `30` | Conversion requests per window per IP |
-| `RATE_LIMIT_WINDOW_MIN` | `15` | Rate-limit window (minutes) |
-| `STORAGE_PATH` | `./storage` | Where uploads/converted files are kept |
+```bash
+cd backend && npm test        # 35 node tests + 12 python tests
+cd frontend && npm run build  # typecheck, build, prerender 29 pages
+```
 
-## Conversion test results
+The backend tests inject fakes for Redis and BullMQ, so no services are needed.
 
-Each worker was exercised end-to-end (upload → queue → worker → download)
-against a live Redis with sample files:
+## API
 
-| Tool | Input | Result |
-|---|---|---|
-| `doc-to-pdf` | `sample.docx` (5.0 KB) | ✅ valid PDF, 9.5 KB |
-| `pdf-to-word` | 1-page text PDF | ✅ valid `Microsoft Word 2007+` DOCX |
-| `pdf-to-word` | corrupt PDF | ✅ fails gracefully: “This PDF could not be converted — it may be scanned or image-based.” |
-| `compress-pdf` | 4-page PDF, `/ebook` preset | ✅ output PDF, before/after sizes reported |
-| `merge-pdf` | two 4-page PDFs | ✅ 8-page merged PDF, upload order preserved |
-| `split-pdf` | pages `1-3,7` style range | ✅ single 2-page PDF for one range |
-| `split-pdf` | no range given | ✅ one PDF per page, zipped |
-| `image-convert` | PNG → WebP | ✅ valid WebP, EXIF orientation preserved |
+Base `/api/v1`. Full contract in the specification, section 7.
 
-Notes:
+```
+POST   /v1/jobs?tool=<slug>     multipart: files[], options, consent
+GET    /v1/jobs/:id             poll; returns a signed download URL when done
+DELETE /v1/jobs/:id             immediate purge — the user-facing delete button
+GET    /v1/jobs/:id/download?t= HMAC-signed, expiring, always an attachment
+GET    /v1/health               queue depth and worker liveness
+GET    /v1/tools                the catalogue, generated from the registry
+```
 
-- LibreOffice must include the Writer/Calc/Impress components — the full
-  `libreoffice` package installed by `scripts/install-deps.sh` covers this.
-  `libreoffice-core` alone fails with “source file could not be loaded”.
-- **HEIC input:** sharp needs libheif. If HEIC conversions fail on the VPS, run
-  `sudo apt install -y libheif-dev` and rebuild sharp
-  (`cd backend && npm rebuild sharp`).
+Errors carry a stable code (`FILE_TOO_LARGE`, `BANK_UNSUPPORTED`, `QUEUE_FULL`,
+…) that clients switch on. Tier C tools are refused: they have no server path.
 
-## Security
+## Adding a tool
 
-- No shell string interpolation with filenames — all external commands run via
-  `execFile` with argument arrays.
-- MIME/extension whitelist on uploads; everything else rejected with a JSON error.
-- File size caps enforced by multer.
-- Rate limiting per IP on the conversion endpoint.
-- Uploaded and converted files are automatically deleted after `FILE_TTL_MINUTES`.
+Add one object to `shared/tools.json`. The route, homepage card, footer link,
+sitemap entry, page metadata, FAQ markup and API allow-list all follow from it.
+The registry is validated at boot, so an error fails immediately rather than
+quietly 404ing a page you were trying to rank.
 
-## Deployment (Ubuntu VPS with Nginx + PM2)
+A server-side tool additionally needs a processor in
+`backend/src/queue/workers/` and a Zod schema in
+`backend/src/validation/options.js`; both are checked at startup.
 
-1. Clone the repo to `/var/www/fileforge`.
-2. Install system dependencies: `sudo bash scripts/install-deps.sh`
-   (LibreOffice, Ghostscript, qpdf, Redis, pdf2docx).
-3. Configure: `cp .env.example .env` and adjust if needed.
-4. Install and build:
-   ```bash
-   cd /var/www/fileforge/frontend && npm ci && npm run build
-   cd /var/www/fileforge/backend && npm ci --omit=dev
-   ```
-5. Start with PM2 (1 API process + 2 worker processes):
-   ```bash
-   cd /var/www/fileforge
-   pm2 start ecosystem.config.js
-   pm2 save
-   pm2 startup   # follow the printed command so PM2 survives reboots
-   ```
-6. Configure Nginx: copy `nginx.conf.example` to
-   `/etc/nginx/sites-available/fileforge`, set `server_name`, enable the site,
-   `nginx -t && sudo systemctl reload nginx`.
-7. When a domain is pointed at the server, run `sudo certbot --nginx` for SSL.
-8. Later deployments: `bash scripts/deploy.sh` (pull → build → restart PM2).
+## Documentation
 
-## Project status
+- [`docs/SECURITY.md`](docs/SECURITY.md) — controls, and what is still open
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — alerts, deploys, incident handling
+- [`docs/ADR/`](docs/ADR/README.md) — decisions, including where this
+  implementation deviates from the spec and why
 
-- [x] Phase 1 — Scaffold + repo setup
-- [x] Phase 2 — Backend core (API + queue)
-- [x] Phase 3 — Conversion workers
-- [x] Phase 4 — Frontend
-- [x] Phase 5 — Deployment (VPS)
-- [ ] Phase 6 — Future (not built yet, TODO markers only):
-  - User accounts (JWT auth) + free tier: 5 conversions/day for anonymous
-    users (track by IP in Redis), unlimited for registered
-  - Razorpay subscription integration (₹199/month premium tier)
-  - Premium features: batch conversion, 200MB files, no daily limit,
-    priority queue
-  - AdSense slots on tool pages (`<AdSlot />` component placeholder)
-  - OCR tool (OCRmyPDF) and FFmpeg audio/video tools
-  - Usage analytics dashboard
+## Not built yet
+
+Named here rather than left to be discovered:
+
+- **Postgres and Drizzle.** Job state is in Redis with a TTL, which is right for
+  the job lifecycle but means the durable analytics tables in spec 6 do not
+  exist yet (ADR-010).
+- **TypeScript backend and pnpm workspaces.** Deferred as its own change
+  (ADR-010).
+- **OCR**, **HTML/URL→PDF**, **video and audio**. The URL tool needs the full
+  SSRF guard first; video is deferred to v2 as the single highest risk to a
+  shared box.
+- **Load test and restore test.** Both are release gates in spec 17 Phase 5 and
+  neither has been run.
+
+## Licence and Ghostscript
+
+Ghostscript is AGPL 3.0. Per ADR-001 this repository is open source, which is
+what makes commercial use of it lawful — the alternative was buying an Artifex
+licence. Keep it that way, or replace the compression engine before closing the
+source.
+
+## Specification
+
+The master build specification is the single source of truth. Where this code
+and that document disagree, the document wins until it is amended — except where
+an ADR records a deliberate deviation.

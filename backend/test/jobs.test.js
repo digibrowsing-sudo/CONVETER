@@ -35,6 +35,21 @@ test('POST /v1/jobs refuses browser-side tools', async (t) => {
   assert.match(res.body.error.message, /runs in your browser/);
 });
 
+test('POST /v1/jobs accepts a Tier C tool that declares a server fallback', async (t) => {
+  const ctx = buildTestApp();
+  t.after(ctx.cleanup);
+
+  // image-convert runs in the browser for formats browsers can decode, and is
+  // promoted to the server for HEIC and TIFF (spec 9.4). Unlike merge-pdf it
+  // must therefore be accepted here, and run at its fallback tier.
+  const res = await post(ctx.app, 'image-convert')
+    .field('options', JSON.stringify({ targetFormat: 'png' }))
+    .attach('files', FIXTURES.png(), 'photo.png');
+
+  assert.equal(res.status, 201);
+  assert.equal(ctx.queues.doc.added[0].data.tier, 'S1');
+});
+
 test('POST /v1/jobs rejects a file whose bytes contradict its extension', async (t) => {
   const ctx = buildTestApp();
   t.after(ctx.cleanup);
