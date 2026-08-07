@@ -1,0 +1,88 @@
+# Typecheck, test and build on every pull request (spec 17 Phase 0, 11.4).
+#
+# This gate is what makes the release checklist in spec 18.2 mean anything: a
+# deploy is triggered by a merge to main, so main going red has to be caught
+# here rather than on the VPS.
+#
+# There is deliberately no lint step yet — ESLint is not configured in this
+# repository, and a job that silently passes because it has nothing to check is
+# worse than an absent one.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push supersedes the run in flight; no point burning minutes on a commit
+# nobody will merge.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+        working-directory: backend
+
+      - name: Node tests
+        run: npm run test:node
+        working-directory: backend
+
+      # The finance parsing primitives have no third-party imports, so they run
+      # without the pdfplumber toolchain. Amount and date parsing across the
+      # formats Indian statements actually use is the layer most likely to
+      # regress silently.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python tests
+        run: npm run test:python
+        working-directory: backend
+
+  frontend:
+    name: Frontend typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      # Runs tsc in strict mode, builds the client and SSR bundles, and
+      # prerenders every route. A registry entry that breaks validation, or a
+      # tool linking to a slug that does not exist, fails right here.
+      - name: Typecheck, build and prerender
+        run: npm run build
+        working-directory: frontend
+
+      - name: Check the prerender produced every page
+        working-directory: frontend
+        run: |
+          expected=$(node -e "const r=require('../shared/tools.json');console.log(r.tools.length+8)")
+          actual=$(find dist -name index.html | wc -l)
+          echo "expected $expected prerendered pages, found $actual"
+          test "$actual" -eq "$expected"
+
+      - name: Check sitemap and robots were generated
+        working-directory: frontend
+        run: test -s dist/sitemap.xml && test -s dist/robots.txt
