@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test \"test/*.test.js\""
+    "worker:doc": "node src/queue/worker-entry.js doc",
+    "worker:finance": "node src/queue/worker-entry.js finance",
+    "test": "npm run test:node && npm run test:python",
+    "test:node": "node --test \"test/*.test.js\"",
+    "test:python": "python3 -m unittest discover -s python/tests -q"
   },
   "dependencies": {
     "archiver": "^7.0.1",
@@ -18,7 +22,8 @@
     "helmet": "^8.0.0",
     "ioredis": "^5.11.1",
     "multer": "^2.2.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "zod": "^3.25.76"
   },
   "engines": {
     "node": ">=20"

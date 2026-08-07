@@ -1,26 +1,52 @@
 'use strict';
 
-// PDF operations: compress (Ghostscript), merge (qpdf), split (qpdf + zip).
+// Server-side PDF operations: compress (Ghostscript) and encrypt / decrypt /
+// repair (qpdf).
+//
+// Merge, split, extract, remove, reorder and rotate are deliberately absent:
+// they are Tier C and run in the browser, so they cost us nothing and the
+// file never leaves the user's device (ADR-002).
 
 const fs = require('fs');
 const path = require('path');
-const archiver = require('archiver');
 const exec = require('../../utils/exec');
-const { PROGRESS, ConversionError, ensureOutDir, renameExt, fileSize } = require('./common');
+const {
+  PROGRESS,
+  conversionError,
+  fromEngineFailure,
+  outDirFor,
+  tmpDirFor,
+  renameExt,
+  fileSize,
+  requireOutput,
+} = require('./common');
 
-// Page ranges qpdf understands: "3", "1-5", "7-z" (z = last page).
-const PAGE_RANGE_RE = /^(\d+|z)(-(\d+|z))?$/;
+// qpdf exits 3 when it produced output but had warnings — for Repair that is
+// precisely the successful case.
+const QPDF_WARNINGS = 3;
 
-async function compressPdf(job, ctx) {
-  const { config, jobstore, logger } = ctx;
-  const { jobId, inputs, options } = job.data;
-  const input = inputs[0];
-  const outDir = await ensureOutDir(config, jobId);
+/**
+ * Passwords must not appear in argv, where any user on the box could read them
+ * out of `ps`. qpdf accepts `@file` to read its arguments from a file instead,
+ * so the password lives in a 0600 file inside the job's tmp directory for the
+ * length of one call and is deleted immediately afterwards.
+ */
+async function withArgFile(tmpDir, lines, fn) {
+  const argFile = path.join(tmpDir, `qpdf-args-${Date.now()}`);
+  await fs.promises.writeFile(argFile, lines.join('\n') + '\n', { mode: 0o600 });
+  try {
+    return await fn(argFile);
+  } finally {
+    await fs.promises.rm(argFile, { force: true });
+  }
+}
 
-  const preset = config.gsPresets.includes(options.compressionLevel)
-    ? options.compressionLevel
-    : config.gsDefaultPreset;
-  const outputPath = path.join(outDir, renameExt(path.basename(input.path), '.pdf', '-compressed'));
+async function compressPdf(job, { config, jobstore, logger }) {
+  const { jobId, files, options } = job;
+  const input = files[0];
+  const outDir = await outDirFor(config, jobId);
+  const level = options.level || config.gsDefaultPreset;
+  const outputPath = path.join(outDir, 'result.pdf');
 
   await jobstore.setProgress(jobId, PROGRESS.CONVERTING);
   try {
@@ -29,154 +55,175 @@ async function compressPdf(job, ctx) {
       [
         '-sDEVICE=pdfwrite',
         '-dCompatibilityLevel=1.4',
-        `-dPDFSETTINGS=/${preset}`,
+        `-dPDFSETTINGS=/${level}`,
         '-dNOPAUSE',
         '-dQUIET',
         '-dBATCH',
+        '-dSAFER',
         `-sOutputFile=${outputPath}`,
         input.path,
       ],
-      { timeoutMs: config.jobTimeoutMs },
+      { timeoutMs: config.retry.S1.timeoutMs, memoryLimitKb: config.engineMemoryLimitKb },
     );
   } catch (err) {
-    logger.error('ghostscript failed', { jobId, error: err.message, stderr: err.stderr });
-    throw new ConversionError(
-      err.timedOut
-        ? 'Compression timed out — the PDF may be too large.'
-        : 'This PDF could not be compressed — it may be corrupted or password-protected.',
+    logger.error('ghostscript failed', { jobId, timedOut: Boolean(err.timedOut), exitCode: err.exitCode });
+    throw fromEngineFailure(err, {
+      timeoutMessage: 'Compression timed out — this PDF may be very large.',
+      failureMessage: 'This PDF could not be compressed — it may be damaged.',
+    });
+  }
+
+  const size = await requireOutput(outputPath, 'This PDF could not be compressed.');
+  const warnings = [];
+  // Compression that makes a file bigger is a real outcome on text-only PDFs,
+  // and saying so is better than handing back a worse file without comment.
+  if (size >= input.size) {
+    warnings.push(
+      'This PDF was already well optimised — the compressed version is not smaller, so you may prefer the original.',
     );
   }
 
   return {
     outputPath,
-    outputName: renameExt(input.originalName, '.pdf', '-compressed'),
-    size: await fileSize(outputPath),
+    outputName: renameExt(input.displayName, '.pdf', '-compressed'),
+    size,
     originalSize: input.size,
+    warnings,
   };
 }
 
-async function mergePdf(job, ctx) {
-  const { config, jobstore, logger } = ctx;
-  const { jobId, inputs } = job.data;
-  const outDir = await ensureOutDir(config, jobId);
-  const outputPath = path.join(outDir, 'merged.pdf');
+async function protectPdf(job, { config, jobstore, logger }) {
+  const { jobId, files, options } = job;
+  const input = files[0];
+  const outDir = await outDirFor(config, jobId);
+  const tmpDir = await tmpDirFor(config, jobId);
+  const outputPath = path.join(outDir, 'result.pdf');
 
   await jobstore.setProgress(jobId, PROGRESS.CONVERTING);
   try {
-    // Upload order is preserved: inputs[] keeps the order files were sent.
-    await exec.run(
-      'qpdf',
-      ['--empty', '--pages', ...inputs.map((i) => i.path), '--', outputPath],
-      { timeoutMs: config.jobTimeoutMs },
+    await withArgFile(
+      tmpDir,
+      [
+        '--encrypt',
+        `--user-password=${options.password}`,
+        `--owner-password=${options.password}`,
+        '--bits=256',
+        '--',
+        input.path,
+        outputPath,
+      ],
+      (argFile) =>
+        exec.run('qpdf', [`@${argFile}`], {
+          timeoutMs: config.retry.S1.timeoutMs,
+          memoryLimitKb: config.engineMemoryLimitKb,
+          allowExitCodes: [QPDF_WARNINGS],
+        }),
     );
   } catch (err) {
-    logger.error('qpdf merge failed', { jobId, error: err.message, stderr: err.stderr });
-    throw new ConversionError(
-      'These PDFs could not be merged — one of them may be corrupted or password-protected.',
+    logger.error('qpdf encrypt failed', { jobId, exitCode: err.exitCode });
+    throw fromEngineFailure(err, {
+      timeoutMessage: 'Encryption timed out — this PDF may be very large.',
+      failureMessage: 'This PDF could not be encrypted — it may be damaged.',
+    });
+  }
+
+  return {
+    outputPath,
+    outputName: renameExt(input.displayName, '.pdf', '-protected'),
+    size: await requireOutput(outputPath, 'This PDF could not be encrypted.'),
+    warnings: ['Keep a copy of the original. A PDF whose password is lost cannot be recovered.'],
+  };
+}
+
+async function unlockPdf(job, { config, jobstore, logger }) {
+  const { jobId, files, options } = job;
+  const input = files[0];
+  const outDir = await outDirFor(config, jobId);
+  const tmpDir = await tmpDirFor(config, jobId);
+  const outputPath = path.join(outDir, 'result.pdf');
+
+  await jobstore.setProgress(jobId, PROGRESS.CONVERTING);
+  try {
+    await withArgFile(
+      tmpDir,
+      [`--password=${options.password}`, '--decrypt', input.path, outputPath],
+      (argFile) =>
+        exec.run('qpdf', [`@${argFile}`], {
+          timeoutMs: config.retry.S1.timeoutMs,
+          memoryLimitKb: config.engineMemoryLimitKb,
+          allowExitCodes: [QPDF_WARNINGS],
+        }),
+    );
+  } catch (err) {
+    // qpdf exit 2 with this message is a wrong password, not a broken file.
+    if (/invalid password/i.test(String(err.stderr || ''))) {
+      logger.info('unlock rejected: wrong password', { jobId });
+      throw conversionError(
+        'ENCRYPTED_INPUT',
+        'That password did not open this PDF. Check it and try again — PDF passwords are case sensitive.',
+      );
+    }
+    logger.error('qpdf decrypt failed', { jobId, exitCode: err.exitCode });
+    throw fromEngineFailure(err, {
+      timeoutMessage: 'Decryption timed out — this PDF may be very large.',
+      failureMessage: 'This PDF could not be unlocked — it may be damaged.',
+    });
+  }
+
+  return {
+    outputPath,
+    outputName: renameExt(input.displayName, '.pdf', '-unlocked'),
+    size: await requireOutput(outputPath, 'This PDF could not be unlocked.'),
+  };
+}
+
+async function repairPdf(job, { config, jobstore, logger }) {
+  const { jobId, files } = job;
+  const input = files[0];
+  const outDir = await outDirFor(config, jobId);
+  const outputPath = path.join(outDir, 'result.pdf');
+
+  await jobstore.setProgress(jobId, PROGRESS.CONVERTING);
+  let result;
+  try {
+    // Rewriting the file through qpdf rebuilds the cross-reference table and
+    // object streams, which is what "repair" actually means here.
+    result = await exec.run('qpdf', ['--linearize', input.path, outputPath], {
+      timeoutMs: config.retry.S1.timeoutMs,
+      memoryLimitKb: config.engineMemoryLimitKb,
+      allowExitCodes: [QPDF_WARNINGS],
+    });
+  } catch (err) {
+    logger.error('qpdf repair failed', { jobId, exitCode: err.exitCode });
+    throw conversionError(
+      'CORRUPT_INPUT',
+      'This PDF is damaged beyond what we can rebuild. If you still have the original source, re-export it.',
     );
   }
 
   return {
     outputPath,
-    outputName: 'merged.pdf',
-    size: await fileSize(outputPath),
+    outputName: renameExt(input.displayName, '.pdf', '-repaired'),
+    size: await requireOutput(outputPath, 'This PDF could not be repaired.'),
+    originalSize: input.size,
+    warnings:
+      result.exitCode === QPDF_WARNINGS
+        ? ['The file was rebuilt but had structural warnings. Check that every page is present.']
+        : [],
   };
 }
 
-async function pageCount(inputPath, config) {
-  const { stdout } = await exec.run('qpdf', ['--show-npages', inputPath], {
-    timeoutMs: config.jobTimeoutMs,
-  });
-  return Number.parseInt(stdout.trim(), 10);
+const HANDLERS = {
+  'compress-pdf': compressPdf,
+  'protect-pdf': protectPdf,
+  'unlock-pdf': unlockPdf,
+  'repair-pdf': repairPdf,
+};
+
+function process(job, ctx) {
+  const handler = HANDLERS[job.toolSlug];
+  if (!handler) throw new Error(`pdf.worker cannot handle "${job.toolSlug}"`);
+  return handler(job, ctx);
 }
 
-function parseRanges(options) {
-  if (options.pages === undefined || options.pages === '') return null;
-  const ranges = String(options.pages)
-    .split(',')
-    .map((r) => r.trim())
-    .filter(Boolean);
-  if (ranges.length === 0 || !ranges.every((r) => PAGE_RANGE_RE.test(r))) {
-    throw new ConversionError(
-      'Invalid page range — use numbers and dashes, e.g. "1-3,7".',
-    );
-  }
-  return ranges;
-}
-
-async function zipFiles(files, zipPath) {
-  await new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 6 } });
-    output.on('close', resolve);
-    archive.on('error', reject);
-    archive.pipe(output);
-    for (const file of files) archive.file(file.path, { name: file.name });
-    archive.finalize();
-  });
-}
-
-async function splitPdf(job, ctx) {
-  const { config, jobstore, logger } = ctx;
-  const { jobId, inputs, options } = job.data;
-  const input = inputs[0];
-  const outDir = await ensureOutDir(config, jobId);
-  const baseName = path.basename(input.originalName, path.extname(input.originalName));
-
-  await jobstore.setProgress(jobId, PROGRESS.CONVERTING);
-
-  // Requested ranges, or one file per page when none were given.
-  let ranges = parseRanges(options);
-  try {
-    if (!ranges) {
-      const pages = await pageCount(input.path, config);
-      ranges = Array.from({ length: pages }, (_, i) => String(i + 1));
-    }
-
-    const parts = [];
-    for (const range of ranges) {
-      const partPath = path.join(outDir, `pages-${range}.pdf`);
-      await exec.run('qpdf', [input.path, '--pages', '.', range, '--', partPath], {
-        timeoutMs: config.jobTimeoutMs,
-      });
-      parts.push({ path: partPath, name: `${baseName}-pages-${range}.pdf` });
-    }
-
-    if (parts.length === 1) {
-      return {
-        outputPath: parts[0].path,
-        outputName: parts[0].name,
-        size: await fileSize(parts[0].path),
-      };
-    }
-
-    const zipPath = path.join(outDir, `${jobId}.zip`);
-    await zipFiles(parts, zipPath);
-    return {
-      outputPath: zipPath,
-      outputName: `${baseName}-split.zip`,
-      size: await fileSize(zipPath),
-    };
-  } catch (err) {
-    if (err instanceof ConversionError) throw err;
-    logger.error('qpdf split failed', { jobId, error: err.message, stderr: err.stderr });
-    throw new ConversionError(
-      'This PDF could not be split — check the page range and that the file is not password-protected.',
-    );
-  }
-}
-
-async function process(job, ctx) {
-  switch (job.data.tool) {
-    case 'compress-pdf':
-      return compressPdf(job, ctx);
-    case 'merge-pdf':
-      return mergePdf(job, ctx);
-    case 'split-pdf':
-      return splitPdf(job, ctx);
-    default:
-      throw new Error(`pdf.worker cannot handle tool ${job.data.tool}`);
-  }
-}
-
-module.exports = { tools: ['compress-pdf', 'merge-pdf', 'split-pdf'], process };
+module.exports = { tools: Object.keys(HANDLERS), process };

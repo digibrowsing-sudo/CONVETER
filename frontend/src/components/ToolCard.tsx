@@ -1,24 +1,28 @@
 import { Link } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { runsInBrowser, toolPath, type ToolDef } from '../tools/registry';
 
-interface ToolCardProps {
-  to: string;
-  title: string;
-  description: string;
-  icon: ReactNode;
-}
+/**
+ * A tool card in the homepage grid. The "in your browser" badge is the single
+ * most important thing on this page (spec 14.5): none of the competitors can
+ * make that claim, and it is what a user searching for privacy is looking for.
+ */
+export default function ToolCard({ tool }: { tool: ToolDef }) {
+  const local = runsInBrowser(tool);
 
-export default function ToolCard({ to, title, description, icon }: ToolCardProps) {
   return (
     <Link
-      to={to}
-      className="group flex flex-col gap-3 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:-translate-y-0.5 hover:shadow-md"
+      to={toolPath(tool)}
+      className="group flex flex-col gap-2 rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100 transition-all hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-        {icon}
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-semibold text-gray-900 group-hover:text-primary">{tool.name}</h3>
+        {local && (
+          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+            No upload
+          </span>
+        )}
       </div>
-      <h3 className="font-semibold text-gray-900">{title}</h3>
-      <p className="text-sm leading-relaxed text-gray-500">{description}</p>
+      <p className="text-sm leading-relaxed text-gray-500">{tool.seo.description}</p>
     </Link>
   );
 }

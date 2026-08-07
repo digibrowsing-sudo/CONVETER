@@ -1,0 +1,610 @@
+{
+  "$comment": "SINGLE SOURCE OF TRUTH for every FileForge tool (spec 5.1). Routes, homepage grid, footer links, sitemap, SEO metadata and the API's allowed-operations list are all generated from this file. Adding a tool = adding one object here. Consumed by backend/src/tools/registry.js and frontend/src/tools/registry.ts.",
+  "version": 1,
+  "tiers": {
+    "C": { "label": "In your browser", "maxBytes": 104857600, "serverSide": false },
+    "S1": { "label": "Server, fast", "maxBytes": 26214400, "serverSide": true },
+    "S2": { "label": "Server, heavy", "maxBytes": 26214400, "serverSide": true },
+    "F": { "label": "Finance module", "maxBytes": 15728640, "serverSide": true }
+  },
+  "tools": [
+    {
+      "slug": "merge-pdf",
+      "name": "Merge PDF",
+      "tier": "C",
+      "category": "organise",
+      "engine": "client:merge",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 20,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Merge PDF files online — free, and without uploading them",
+        "description": "Combine several PDFs into one file directly in your browser. Nothing is uploaded, there is no sign-up, and the page order is exactly the order you choose.",
+        "h1": "Merge PDF",
+        "faq": [
+          { "q": "Are my files uploaded to a server?", "a": "No. Merging runs entirely in your browser using WebAssembly. Open your browser's network tab while you merge — you will see no upload request at all." },
+          { "q": "How many PDFs can I merge at once?", "a": "Up to 20 files, and up to 100 MB in total. Because the work happens on your own device the limit is your available memory rather than our server capacity." },
+          { "q": "Does merging change the order of my pages?", "a": "No. Files are merged in the order they appear in the list, and you can drag them into a different order before merging." },
+          { "q": "Can I merge password-protected PDFs?", "a": "Not directly. Remove the password first with our Unlock PDF tool — you will need the password itself — and then merge the unlocked files." },
+          { "q": "Will merging reduce the quality of my PDF?", "a": "No. Pages are copied across without being re-encoded, so text stays selectable and images keep their original resolution." },
+          { "q": "Is there a watermark on the result?", "a": "No. FileForge never adds watermarks, and there is no paid tier that removes one." }
+        ],
+        "related": ["split-pdf", "organize-pdf", "compress-pdf", "extract-pages"]
+      }
+    },
+    {
+      "slug": "split-pdf",
+      "name": "Split PDF",
+      "tier": "C",
+      "category": "organise",
+      "engine": "client:split",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/zip",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Split PDF online — separate pages without uploading the file",
+        "description": "Split a PDF into single pages or into custom ranges, entirely inside your browser. The file never leaves your device and there is no sign-up.",
+        "h1": "Split PDF",
+        "faq": [
+          { "q": "Does the PDF get uploaded anywhere?", "a": "No. Splitting happens in your browser. The file is read into memory on your own device and the results are generated there too." },
+          { "q": "How do I split only certain pages?", "a": "Enter ranges such as 1-3,7,10-12. Leave the box empty to split the document into one file per page." },
+          { "q": "What do I get back?", "a": "A single PDF if your ranges produce one file, or a ZIP containing all the parts if they produce several." },
+          { "q": "Is there a page limit?", "a": "There is no hard page limit for browser-side splitting, but very large documents are limited by your device's memory. Files up to 100 MB are supported." },
+          { "q": "Do bookmarks and links survive the split?", "a": "Page content, text and images are preserved exactly. Document-level bookmarks that point outside a given range are dropped, because the pages they refer to are no longer in that file." },
+          { "q": "Can I split a scanned PDF?", "a": "Yes. Splitting works on the page level and does not care whether pages contain real text or scanned images." }
+        ],
+        "related": ["merge-pdf", "extract-pages", "remove-pages", "organize-pdf"]
+      }
+    },
+    {
+      "slug": "extract-pages",
+      "name": "Extract PDF pages",
+      "tier": "C",
+      "category": "organise",
+      "engine": "client:extract",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Extract pages from a PDF online — free, private, no upload",
+        "description": "Pull selected pages out of a PDF into a new document, in your browser. Nothing is uploaded and no account is needed.",
+        "h1": "Extract pages from a PDF",
+        "faq": [
+          { "q": "How is this different from splitting?", "a": "Split produces several files. Extract keeps the pages you choose and puts them into one new PDF, discarding the rest." },
+          { "q": "How do I choose the pages?", "a": "Type the pages or ranges you want to keep, for example 2,5,9-12. They are written to the new file in the order you list them." },
+          { "q": "Is the original file modified?", "a": "Never. The file on your disk is untouched; the tool produces a new document for you to download." },
+          { "q": "Does this run on a server?", "a": "No. Extraction is done by WebAssembly inside your browser, so the document stays on your device." },
+          { "q": "Will the extracted pages keep their formatting?", "a": "Yes. Pages are copied without re-encoding, so fonts, images and layout are identical to the source." },
+          { "q": "Can I extract pages from an encrypted PDF?", "a": "Only after removing the password with the Unlock PDF tool, which requires you to know the password." }
+        ],
+        "related": ["split-pdf", "remove-pages", "merge-pdf", "organize-pdf"]
+      }
+    },
+    {
+      "slug": "remove-pages",
+      "name": "Remove PDF pages",
+      "tier": "C",
+      "category": "organise",
+      "engine": "client:remove",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Delete pages from a PDF online — free and fully offline",
+        "description": "Remove unwanted pages from a PDF without uploading it. Runs in your browser, keeps the rest of the document byte-for-byte intact.",
+        "h1": "Remove pages from a PDF",
+        "faq": [
+          { "q": "Which pages will be deleted?", "a": "Exactly the pages and ranges you list, for example 1,4,8-10. Everything else is kept in its original order." },
+          { "q": "Is my file uploaded?", "a": "No. The whole operation runs locally in your browser, so the document never touches our servers." },
+          { "q": "Can I undo it?", "a": "Your original file is never modified, so simply discard the download and start again." },
+          { "q": "Does removing pages shrink the file?", "a": "Usually yes, because the images and fonts used only by those pages are dropped. Use Compress PDF if you need a bigger reduction." },
+          { "q": "What if I list a page that does not exist?", "a": "The tool tells you the valid range instead of producing a broken file." },
+          { "q": "Is there a size limit?", "a": "100 MB, which is a practical browser-memory limit rather than a server one." }
+        ],
+        "related": ["extract-pages", "split-pdf", "organize-pdf", "compress-pdf"]
+      }
+    },
+    {
+      "slug": "organize-pdf",
+      "name": "Organise PDF",
+      "tier": "C",
+      "category": "organise",
+      "engine": "client:organize",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Reorder PDF pages online — rearrange without uploading",
+        "description": "Put the pages of a PDF into any order you like, in your browser. No upload, no sign-up, no watermark.",
+        "h1": "Organise PDF pages",
+        "faq": [
+          { "q": "How do I set the new order?", "a": "Enter the page numbers in the order you want them, for example 3,1,2,4. Any page you leave out is removed from the result." },
+          { "q": "Can I repeat a page?", "a": "Yes. Listing the same page twice duplicates it in the output." },
+          { "q": "Is anything uploaded?", "a": "No. Reordering happens entirely inside your browser." },
+          { "q": "Does this rotate pages too?", "a": "No, use the Rotate PDF tool for that. Organise only changes the sequence of pages." },
+          { "q": "Will the file get larger?", "a": "No, unless you duplicate pages. Reordering rewrites the page tree, not the page content." },
+          { "q": "What is the largest file I can reorder?", "a": "100 MB. Larger files may work but depend on how much memory your browser can allocate." }
+        ],
+        "related": ["merge-pdf", "split-pdf", "remove-pages", "rotate-pdf"]
+      }
+    },
+    {
+      "slug": "rotate-pdf",
+      "name": "Rotate PDF",
+      "tier": "C",
+      "category": "edit",
+      "engine": "client:rotate",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Rotate PDF pages online — permanent rotation, no upload",
+        "description": "Turn PDF pages 90, 180 or 270 degrees and save the rotation permanently. Runs in your browser; the file is never uploaded.",
+        "h1": "Rotate PDF",
+        "faq": [
+          { "q": "Is the rotation permanent?", "a": "Yes. Unlike rotating in a viewer, the new orientation is written into the file and every reader will honour it." },
+          { "q": "Can I rotate only some pages?", "a": "Yes. Leave the page box empty to rotate everything, or list pages and ranges such as 2,5-8." },
+          { "q": "Does the file get uploaded?", "a": "No. Rotation is applied in your browser and the document stays on your device." },
+          { "q": "Which angles are supported?", "a": "90 degrees clockwise, 180 degrees, and 90 degrees anti-clockwise (270)." },
+          { "q": "Will rotating reduce quality?", "a": "No. Rotation changes a page attribute; the page content is not re-rendered or re-compressed." },
+          { "q": "My scan is upside down — will this fix it?", "a": "Yes, choose 180 degrees. If only some pages are upside down, list just those page numbers." }
+        ],
+        "related": ["organize-pdf", "split-pdf", "compress-pdf", "pdf-to-jpg"]
+      }
+    },
+    {
+      "slug": "jpg-to-pdf",
+      "name": "JPG to PDF",
+      "tier": "C",
+      "category": "convert",
+      "engine": "client:imagesToPdf",
+      "accepts": ["image/jpeg", "image/png", "image/webp"],
+      "acceptExts": [".jpg", ".jpeg", ".png", ".webp"],
+      "produces": "application/pdf",
+      "maxFiles": 50,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "JPG to PDF converter — combine images into a PDF, no upload",
+        "description": "Turn JPG, PNG and WebP images into a single PDF inside your browser. Choose page size and orientation. Nothing is uploaded.",
+        "h1": "Convert JPG to PDF",
+        "faq": [
+          { "q": "Can I put several images into one PDF?", "a": "Yes. Add up to 50 images and they become one PDF, one image per page, in the order shown." },
+          { "q": "Are my photos uploaded?", "a": "No. The PDF is built in your browser, which matters when the images are personal documents such as ID cards or cheques." },
+          { "q": "What page size is used?", "a": "You can choose A4, US Letter, or a page that matches each image's own dimensions exactly." },
+          { "q": "Which image formats are supported?", "a": "JPG, PNG and WebP. For HEIC or TIFF, run them through the Image Converter first." },
+          { "q": "Will the images be compressed again?", "a": "JPGs are embedded as-is with no re-compression. PNG and WebP images are converted to a lossless PDF image stream." },
+          { "q": "Can I control the order of pages?", "a": "Yes, reorder the files in the list before converting and the PDF follows that order." }
+        ],
+        "related": ["pdf-to-jpg", "image-convert", "merge-pdf", "compress-pdf"]
+      }
+    },
+    {
+      "slug": "pdf-to-jpg",
+      "name": "PDF to JPG",
+      "tier": "C",
+      "category": "convert",
+      "engine": "client:pdfToImages",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/zip",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "PDF to JPG converter — extract pages as images, no upload",
+        "description": "Render every page of a PDF as a JPG or PNG image, in your browser. Pick the resolution. The PDF is never uploaded.",
+        "h1": "Convert PDF to JPG",
+        "faq": [
+          { "q": "Does this upload my PDF?", "a": "No. Pages are rendered by pdf.js inside your browser and the images are produced on your own device." },
+          { "q": "What resolution do I get?", "a": "Choose 72, 150 or 300 DPI. 150 DPI suits screen use; 300 DPI is appropriate for printing." },
+          { "q": "Can I get PNG instead of JPG?", "a": "Yes. PNG is lossless and better for pages that are mostly text or line art." },
+          { "q": "How are multiple pages delivered?", "a": "A single image if the PDF has one page, otherwise a ZIP with one image per page, numbered in order." },
+          { "q": "Does it extract the embedded images?", "a": "No, it renders the whole page as it appears, including text and vector graphics." },
+          { "q": "Why is a big PDF slow?", "a": "Every page is rendered on your device. High DPI on a long document is CPU-intensive; lower the DPI to speed it up." }
+        ],
+        "related": ["jpg-to-pdf", "image-convert", "split-pdf", "compress-pdf"]
+      }
+    },
+    {
+      "slug": "image-convert",
+      "name": "Image converter",
+      "tier": "C",
+      "category": "convert",
+      "engine": "client:imageConvert",
+      "fallbackTier": "S1",
+      "fallbackEngine": "sharp",
+      "accepts": ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff", "image/heic", "image/heif"],
+      "acceptExts": [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".heic"],
+      "produces": "image/*",
+      "maxFiles": 1,
+      "maxBytes": 104857600,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Image converter — JPG, PNG and WebP, converted in your browser",
+        "description": "Convert and compress images between JPG, PNG and WebP with a quality slider. Common formats are converted on your device; HEIC and TIFF fall back to our server.",
+        "h1": "Convert and compress images",
+        "faq": [
+          { "q": "Is my image uploaded?", "a": "For JPG, PNG, WebP, GIF and BMP inputs, no — the conversion runs in your browser. HEIC and TIFF need a server-side decoder, and we tell you before that happens." },
+          { "q": "Which output formats can I choose?", "a": "JPG, PNG and WebP. WebP usually gives the smallest file at the same visible quality." },
+          { "q": "What does the quality slider do?", "a": "It sets the JPG or WebP compression level from 1 to 100. Around 80 is a good balance; PNG is lossless so the slider does not apply." },
+          { "q": "Will my photo be rotated correctly?", "a": "Yes. EXIF orientation is applied so the image appears the way it was taken." },
+          { "q": "Is EXIF metadata kept?", "a": "No. Location and camera metadata are dropped during conversion, which is usually what you want before sharing a photo." },
+          { "q": "Can I convert a HEIC photo from my iPhone?", "a": "Yes. HEIC is decoded on our server because browsers cannot read it, and the file is deleted within an hour." }
+        ],
+        "related": ["jpg-to-pdf", "pdf-to-jpg", "compress-pdf", "merge-pdf"]
+      }
+    },
+    {
+      "slug": "compress-pdf",
+      "name": "Compress PDF",
+      "tier": "S1",
+      "category": "optimise",
+      "engine": "ghostscript",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Compress PDF online free — reduce PDF file size",
+        "description": "Shrink a PDF by downsampling its images while keeping the text sharp. Choose the quality level. Files are deleted from our servers within an hour.",
+        "h1": "Compress PDF",
+        "faq": [
+          { "q": "How much smaller will my PDF get?", "a": "It depends almost entirely on the images inside. Scanned or photo-heavy PDFs often shrink by 60-90%; a text-only PDF may barely change because there is little left to remove." },
+          { "q": "Which quality level should I pick?", "a": "Screen for email attachments, eBook for general use, and Printer when the file still has to print well." },
+          { "q": "Is the text still selectable afterwards?", "a": "Yes. Text and fonts are preserved; only images are downsampled and re-compressed." },
+          { "q": "Why is this one not done in my browser?", "a": "Good PDF compression needs Ghostscript, which has no browser equivalent. The file is uploaded over HTTPS, processed in a sandboxed container and deleted within an hour." },
+          { "q": "Can I compress a password-protected PDF?", "a": "No. Remove the password first with Unlock PDF, which requires you to know it." },
+          { "q": "What is the size limit?", "a": "25 MB per file for server-side tools. Browser-side tools such as Merge and Split accept up to 100 MB." }
+        ],
+        "related": ["merge-pdf", "split-pdf", "repair-pdf", "pdf-to-jpg"]
+      }
+    },
+    {
+      "slug": "protect-pdf",
+      "name": "Protect PDF",
+      "tier": "S1",
+      "category": "security",
+      "engine": "qpdf",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Password protect a PDF online — AES-256 encryption",
+        "description": "Add a password to a PDF using AES-256 encryption. The file and your password are deleted from our servers within an hour and never logged.",
+        "h1": "Password protect a PDF",
+        "faq": [
+          { "q": "How strong is the encryption?", "a": "AES-256, the strongest encryption defined by the PDF specification and the same standard used by Acrobat." },
+          { "q": "Is my password stored or logged?", "a": "No. It is held in memory for the duration of the job only. It is never written to disk, never written to a log line and never stored in our database." },
+          { "q": "What happens if I forget the password?", "a": "The file cannot be recovered — by us or by anyone else. Keep a copy of the original unprotected file." },
+          { "q": "Will it open on a phone?", "a": "Yes. AES-256 PDF encryption is supported by every current reader on desktop and mobile." },
+          { "q": "Can I restrict printing or copying instead?", "a": "This tool sets an open password, which is the protection that actually holds. Permission-only restrictions are trivially bypassed and we do not pretend otherwise." },
+          { "q": "Is this suitable for a bank statement I need to email?", "a": "Yes, and it is a sensible habit. Send the password through a different channel from the file itself." }
+        ],
+        "related": ["unlock-pdf", "compress-pdf", "repair-pdf", "merge-pdf"]
+      }
+    },
+    {
+      "slug": "unlock-pdf",
+      "name": "Unlock PDF",
+      "tier": "S1",
+      "category": "security",
+      "engine": "qpdf",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "disclaimer": "FileForge only decrypts a PDF when you supply the correct password. We do not remove owner-password restrictions without the password, and we do not attempt to guess or crack passwords.",
+      "seo": {
+        "title": "Unlock a PDF you have the password for — remove PDF encryption",
+        "description": "Remove the password from a PDF you can already open, so you can edit or convert it. You must supply the correct password; FileForge does not crack passwords.",
+        "h1": "Unlock PDF",
+        "faq": [
+          { "q": "Do I need to know the password?", "a": "Yes. FileForge decrypts only with the correct password. We do not guess, brute-force or bypass PDF passwords under any circumstances." },
+          { "q": "Why will you not remove restrictions without a password?", "a": "Stripping an owner password without authorisation is a DRM-circumvention question and is legally grey in several jurisdictions. We decline it deliberately rather than expose users to that." },
+          { "q": "Is my password logged?", "a": "No. It is used for the single qpdf call and then discarded. It is never written to disk or to a log." },
+          { "q": "What do I get back?", "a": "The same PDF with the encryption removed, so it can be edited, merged or converted normally." },
+          { "q": "It says the password is wrong but I am sure it is right.", "a": "PDF passwords are case-sensitive and some readers store a different owner password from the one you type to open the file. Try the exact password you use to open it." },
+          { "q": "Can I unlock a file someone else sent me?", "a": "Only if you have the password and the right to do so. Our terms prohibit using the tool to circumvent protection on material you are not authorised to access." }
+        ],
+        "related": ["protect-pdf", "compress-pdf", "repair-pdf", "pdf-to-word"]
+      }
+    },
+    {
+      "slug": "repair-pdf",
+      "name": "Repair PDF",
+      "tier": "S1",
+      "category": "optimise",
+      "engine": "qpdf",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Repair a damaged PDF online — rebuild a corrupt PDF file",
+        "description": "Rebuild the internal structure of a PDF that will not open. Recovers what is recoverable; files are deleted from our servers within an hour.",
+        "h1": "Repair PDF",
+        "faq": [
+          { "q": "What kinds of damage can this fix?", "a": "Broken cross-reference tables, truncated downloads and malformed object streams — the usual causes of \"the file is damaged and could not be repaired\"." },
+          { "q": "Can it recover a file that was never fully downloaded?", "a": "Often partially. If the tail of the file is missing, the pages that did arrive can usually be recovered." },
+          { "q": "Will it recover deleted content?", "a": "No. Repair rebuilds the structure around the data that is still in the file. It cannot invent content that is not there." },
+          { "q": "What if repair fails?", "a": "You get a clear error rather than a silently broken download. Some files are damaged past recovery." },
+          { "q": "Does it change my content?", "a": "No. The page content is preserved; only the file's internal index is rewritten." },
+          { "q": "Is the repaired file smaller?", "a": "Sometimes, because rebuilding removes orphaned objects. That is a side effect, not the purpose." }
+        ],
+        "related": ["compress-pdf", "unlock-pdf", "merge-pdf", "pdf-to-word"]
+      }
+    },
+    {
+      "slug": "word-to-pdf",
+      "name": "Word to PDF",
+      "tier": "S2",
+      "category": "convert",
+      "engine": "libreoffice",
+      "accepts": [
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.oasis.opendocument.text",
+        "application/rtf",
+        "text/rtf",
+        "text/plain"
+      ],
+      "acceptExts": [".doc", ".docx", ".odt", ".rtf", ".txt"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Word to PDF converter — DOC, DOCX and ODT to PDF, free",
+        "description": "Convert Word documents to PDF with layout and fonts intact, including Hindi, Gujarati and Marathi text. Files are deleted from our servers within an hour.",
+        "h1": "Convert Word to PDF",
+        "faq": [
+          { "q": "Will my formatting survive?", "a": "Yes. Conversion uses LibreOffice, which renders DOCX layout, tables and headers faithfully in almost all documents." },
+          { "q": "Do Indian-language documents work?", "a": "Yes. Our conversion image ships Indic fonts, so Hindi, Gujarati and Marathi text renders properly instead of appearing as empty boxes." },
+          { "q": "Which formats can I convert?", "a": "DOC, DOCX, ODT, RTF and plain text." },
+          { "q": "Are fonts embedded in the PDF?", "a": "Yes, so the document looks the same on any machine. Fonts installed only on your own computer are substituted with the closest available match." },
+          { "q": "Is this done in my browser?", "a": "No, it needs LibreOffice. The file is uploaded over HTTPS, converted in a sandboxed container with no network access, and deleted within an hour." },
+          { "q": "What is the file size limit?", "a": "25 MB. If your document is larger it is usually because of embedded images — compress those first." }
+        ],
+        "related": ["pdf-to-word", "excel-to-pdf", "powerpoint-to-pdf", "compress-pdf"]
+      }
+    },
+    {
+      "slug": "excel-to-pdf",
+      "name": "Excel to PDF",
+      "tier": "S2",
+      "category": "convert",
+      "engine": "libreoffice",
+      "accepts": [
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.oasis.opendocument.spreadsheet",
+        "text/csv"
+      ],
+      "acceptExts": [".xls", ".xlsx", ".ods", ".csv"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "Excel to PDF converter — XLS, XLSX and CSV to PDF, free",
+        "description": "Convert spreadsheets to PDF for sharing or filing. Print ranges and page setup from the workbook are respected. Files deleted within an hour.",
+        "h1": "Convert Excel to PDF",
+        "faq": [
+          { "q": "How are wide sheets handled?", "a": "The workbook's own page setup is used. If a sheet has no print area set, wide tables may spill onto extra pages — set the print area in Excel first for the cleanest result." },
+          { "q": "Are all sheets included?", "a": "Yes, every sheet in the workbook is converted in order." },
+          { "q": "Do formulas convert?", "a": "The calculated values are rendered, which is what a PDF should show. The formulas themselves are not preserved — a PDF has no concept of them." },
+          { "q": "Do charts and conditional formatting survive?", "a": "Charts and cell formatting render correctly in the large majority of workbooks. Very complex pivot charts occasionally shift." },
+          { "q": "Can I convert a CSV?", "a": "Yes. It is laid out as a plain table with default column widths." },
+          { "q": "What is the size limit?", "a": "25 MB per file." }
+        ],
+        "related": ["word-to-pdf", "powerpoint-to-pdf", "bank-statement-to-excel", "compress-pdf"]
+      }
+    },
+    {
+      "slug": "powerpoint-to-pdf",
+      "name": "PowerPoint to PDF",
+      "tier": "S2",
+      "category": "convert",
+      "engine": "libreoffice",
+      "accepts": [
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.oasis.opendocument.presentation"
+      ],
+      "acceptExts": [".ppt", ".pptx", ".odp"],
+      "produces": "application/pdf",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "PowerPoint to PDF converter — PPT and PPTX to PDF, free",
+        "description": "Turn a presentation into a PDF, one slide per page, with fonts and layout preserved. Files are deleted from our servers within an hour.",
+        "h1": "Convert PowerPoint to PDF",
+        "faq": [
+          { "q": "Does each slide become one page?", "a": "Yes, one slide per PDF page at the deck's own aspect ratio, whether that is 16:9 or 4:3." },
+          { "q": "What happens to animations and transitions?", "a": "They are dropped, because a PDF is static. Each slide is rendered in its final state." },
+          { "q": "Are speaker notes included?", "a": "No. Only the slides themselves are converted." },
+          { "q": "Do embedded videos survive?", "a": "No. A still frame or the poster image appears in their place." },
+          { "q": "Will my fonts look right?", "a": "Yes, fonts are embedded. Fonts installed only on your own machine are substituted with the nearest match." },
+          { "q": "What is the size limit?", "a": "25 MB. Image-heavy decks often exceed this — compress the images in PowerPoint first." }
+        ],
+        "related": ["word-to-pdf", "excel-to-pdf", "compress-pdf", "pdf-to-jpg"]
+      }
+    },
+    {
+      "slug": "pdf-to-word",
+      "name": "PDF to Word",
+      "tier": "S2",
+      "category": "convert",
+      "engine": "pdf2docx",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "maxFiles": 1,
+      "maxBytes": 26214400,
+      "requiresPlan": "free",
+      "seo": {
+        "title": "PDF to Word converter — turn a PDF into an editable DOCX",
+        "description": "Convert a PDF into an editable Word document with paragraphs, tables and images reconstructed. Files are deleted from our servers within an hour.",
+        "h1": "Convert PDF to Word",
+        "faq": [
+          { "q": "How accurate is the conversion?", "a": "Text-based PDFs with a straightforward layout convert very well, including tables. Multi-column magazine layouts and heavy graphic design will need tidying up afterwards." },
+          { "q": "Will it work on a scanned PDF?", "a": "No. A scan is a picture of text, so there is nothing to extract. You need OCR first — that is on our roadmap." },
+          { "q": "Are tables preserved as real Word tables?", "a": "Yes, where the PDF has recognisable table structure. Tables drawn without ruling lines are the hardest case and may come out as plain text." },
+          { "q": "Do images come across?", "a": "Yes, embedded images are placed into the DOCX at their original resolution." },
+          { "q": "Why is this not done in my browser?", "a": "The conversion uses a Python layout-analysis engine with no browser equivalent. The file is processed in a sandboxed container and deleted within an hour." },
+          { "q": "Can I convert a password-protected PDF?", "a": "Not directly — remove the password first with Unlock PDF, which requires you to know it." }
+        ],
+        "related": ["word-to-pdf", "unlock-pdf", "compress-pdf", "bank-statement-to-excel"]
+      }
+    },
+    {
+      "slug": "bank-statement-to-excel",
+      "name": "Bank statement to Excel",
+      "tier": "F",
+      "category": "finance",
+      "engine": "finance:bank_statement",
+      "docType": "bank_statement",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "maxFiles": 1,
+      "maxBytes": 15728640,
+      "requiresPlan": "free",
+      "requiresConsent": true,
+      "disclaimer": "Check every figure against your original statement before using this data in books of account, a return or any filing. Automated extraction can misread a PDF, and you remain responsible for the accuracy of what you file.",
+      "seo": {
+        "title": "Bank statement PDF to Excel — HDFC, ICICI, SBI and Kotak",
+        "description": "Convert an Indian bank statement PDF into a clean Excel sheet with date, narration, reference, debit, credit and balance columns. Deleted 15 minutes after conversion, or the moment you download it.",
+        "h1": "Convert a bank statement PDF to Excel",
+        "faq": [
+          { "q": "Which banks are supported?", "a": "HDFC Bank, ICICI Bank, State Bank of India and Kotak Mahindra Bank statements are parsed with dedicated, format-specific parsers. Other banks fall back to a generic table reader that works on many statements but is not guaranteed." },
+          { "q": "What columns do I get?", "a": "Date, value date, narration, reference or cheque number, debit, credit and running balance — one row per transaction, with the amounts as real numbers rather than text." },
+          { "q": "How long is my statement kept?", "a": "Fifteen minutes at most, and it is deleted the instant you download the result. That is deliberately shorter than the one hour we keep ordinary files." },
+          { "q": "Is any of my financial data stored?", "a": "No. We record that a job ran, which bank format was detected and how many rows were parsed. No transaction, name, account number or balance is ever written to our database — there is no column that could hold one." },
+          { "q": "How do I know the output is correct?", "a": "Every run is scored for confidence and any row we are unsure about is flagged in the sheet. The closing balance is also recomputed from the transactions and compared with the balance printed on the statement. You must still check the figures before filing anything." },
+          { "q": "It says my bank is not supported — what now?", "a": "Tell us which bank and we will add a parser; the failures we log are exactly how we decide what to build next. In the meantime the generic reader may still work on a ruled-table statement." }
+        ],
+        "related": ["bank-statement-to-tally", "gst-invoice-to-excel", "form-26as-to-excel", "pdf-to-word"]
+      }
+    },
+    {
+      "slug": "bank-statement-to-tally",
+      "name": "Bank statement to Tally CSV",
+      "tier": "F",
+      "category": "finance",
+      "engine": "finance:bank_statement",
+      "docType": "bank_statement",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "text/csv",
+      "maxFiles": 1,
+      "maxBytes": 15728640,
+      "requiresPlan": "free",
+      "requiresConsent": true,
+      "disclaimer": "Check every figure against your original statement before importing it into Tally. Automated extraction can misread a PDF, and you remain responsible for the accuracy of your books.",
+      "seo": {
+        "title": "Bank statement PDF to Tally-ready CSV — import straight into Tally",
+        "description": "Convert a bank statement PDF into a CSV laid out for Tally import, with Date, Voucher Type, Narration, Debit and Credit columns. Deleted 15 minutes after conversion.",
+        "h1": "Convert a bank statement to a Tally-ready CSV",
+        "faq": [
+          { "q": "What makes the CSV Tally-ready?", "a": "Columns are named and ordered the way a Tally bank import expects — Date, Voucher Type, Reference, Narration, Debit, Credit — with dates as DD-MM-YYYY and amounts as plain numbers with no currency symbol or thousands separator." },
+          { "q": "Which voucher type is assigned?", "a": "Receipt for credits and Payment for debits. Change them in Tally if your ledger structure needs something else." },
+          { "q": "Does it create ledger entries automatically?", "a": "No. The CSV carries the bank side of each entry; you map the contra ledger during import in Tally, which is the step that needs your judgement." },
+          { "q": "Which banks are supported?", "a": "HDFC, ICICI, SBI and Kotak have dedicated parsers, with a generic table reader as a fallback for other banks." },
+          { "q": "How long do you keep my statement?", "a": "Fifteen minutes at most, and it is deleted the moment you download the CSV." },
+          { "q": "Should I check the file before importing?", "a": "Yes. Reconcile the row count and the closing balance against the statement first — an import into live books is hard to unwind." }
+        ],
+        "related": ["bank-statement-to-excel", "gst-invoice-to-excel", "form-26as-to-excel", "excel-to-pdf"]
+      }
+    },
+    {
+      "slug": "gst-invoice-to-excel",
+      "name": "GST invoice to Excel",
+      "tier": "F",
+      "category": "finance",
+      "engine": "finance:gst_invoice",
+      "docType": "gst_invoice",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "maxFiles": 1,
+      "maxBytes": 15728640,
+      "requiresPlan": "free",
+      "requiresConsent": true,
+      "disclaimer": "Verify GSTINs, tax rates and totals against the original invoice before using this data in a return. Automated extraction can misread a PDF and you remain responsible for what you file.",
+      "seo": {
+        "title": "GST invoice PDF to Excel — extract line items and tax breakup",
+        "description": "Pull invoice number, date, both GSTINs, line items and the CGST, SGST and IGST breakup out of a GST invoice PDF into Excel. Deleted 15 minutes after conversion.",
+        "h1": "Extract a GST invoice to Excel",
+        "faq": [
+          { "q": "What is extracted?", "a": "Invoice number and date, supplier and recipient GSTIN, place of supply, each line item with HSN or SAC code, quantity, rate and taxable value, and the CGST, SGST, IGST and cess breakup." },
+          { "q": "Are the GSTINs validated?", "a": "They are checked against the 15-character GSTIN format and its checksum digit. A GSTIN that fails is flagged in the sheet rather than silently accepted." },
+          { "q": "Does it work on scanned invoices?", "a": "No. The invoice must contain real text. A photographed or scanned invoice needs OCR first, which is on our roadmap." },
+          { "q": "Can I process several invoices at once?", "a": "Not yet — one invoice per run. Batch processing is planned as a paid feature." },
+          { "q": "Do the totals get checked?", "a": "Yes. Line-item taxable values are summed and compared with the invoice total, and any mismatch is flagged prominently." },
+          { "q": "How long is the invoice kept?", "a": "Fifteen minutes at most, and it is deleted the moment you download the result." }
+        ],
+        "related": ["bank-statement-to-excel", "form-26as-to-excel", "bank-statement-to-tally", "pdf-to-word"]
+      }
+    },
+    {
+      "slug": "form-26as-to-excel",
+      "name": "Form 26AS to Excel",
+      "tier": "F",
+      "category": "finance",
+      "engine": "finance:form26as",
+      "docType": "form_26as",
+      "accepts": ["application/pdf"],
+      "acceptExts": [".pdf"],
+      "produces": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "maxFiles": 1,
+      "maxBytes": 15728640,
+      "requiresPlan": "free",
+      "requiresConsent": true,
+      "disclaimer": "Reconcile every TDS entry against your own records and the figures on the income tax portal before relying on this sheet for a return. You remain responsible for what you file.",
+      "seo": {
+        "title": "Form 26AS PDF to Excel — TDS entries in a usable sheet",
+        "description": "Convert a Form 26AS or AIS PDF into Excel, with one row per TDS entry: deductor name, TAN, section, date, amount paid and tax deducted. Deleted 15 minutes after conversion.",
+        "h1": "Convert Form 26AS to Excel",
+        "faq": [
+          { "q": "Which parts of 26AS are extracted?", "a": "Part A (TDS), Part A1 (TDS where Form 15G/15H was submitted) and Part B (TCS), each on its own sheet with a summary sheet on top." },
+          { "q": "What columns do I get?", "a": "Deductor name, TAN, section, transaction date, date of booking, amount paid or credited, and tax deducted and deposited." },
+          { "q": "Does it work on the password-protected 26AS from TRACES?", "a": "Not directly. Remove the password first with our Unlock PDF tool using your date of birth in DDMMYYYY form, which is the standard TRACES password." },
+          { "q": "Does it handle AIS as well?", "a": "The AIS layout is close enough that the parser usually reads it, but 26AS is the format we test against. Check AIS output carefully." },
+          { "q": "Is my PAN stored?", "a": "No. Nothing from the document is written to our database — not your PAN, not a deductor name, not an amount." },
+          { "q": "How long is the file kept?", "a": "Fifteen minutes at most, and it is deleted the moment you download the sheet." }
+        ],
+        "related": ["bank-statement-to-excel", "gst-invoice-to-excel", "unlock-pdf", "bank-statement-to-tally"]
+      }
+    }
+  ]
+}

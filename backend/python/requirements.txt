@@ -1,0 +1,7 @@
+# Python toolchain for worker-finance and pdf-to-word.
+# Installed into the worker image; see scripts/install-deps.sh.
+
+pdfplumber==0.11.4      # text + table extraction with word coordinates
+openpyxl==3.1.5         # Excel output
+pdf2docx==0.5.8         # PDF -> DOCX (ADR-005: LibreOffice is poor at this direction)
+defusedxml==0.7.1       # spec 12.2: hard requirement, all XML parsing is hardened

@@ -6,3 +6,7 @@ dist/
 *.tsbuildinfo
 __pycache__/
 .DS_Store
+
+# Redis dump written by a local redis-server; never a repo artefact.
+dump.rdb
+dist-ssr/
