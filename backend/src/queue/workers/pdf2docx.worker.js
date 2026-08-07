@@ -2,45 +2,59 @@
 
 // pdf-to-word: PDF -> DOCX via the Python pdf2docx package.
 //
-// Paths are passed through sys.argv, never interpolated into the Python
-// source, so filenames cannot inject code.
+// LibreOffice is poor at this direction, which is why a second engine exists
+// for it at all (ADR-005). Paths are passed through argv to a script on disk —
+// never interpolated into Python source — so a filename cannot inject code.
 
 const path = require('path');
 const exec = require('../../utils/exec');
-const { PROGRESS, ConversionError, ensureOutDir, renameExt, fileSize } = require('./common');
+const {
+  PROGRESS,
+  conversionError,
+  fromEngineFailure,
+  outDirFor,
+  renameExt,
+  requireOutput,
+} = require('./common');
 
-const PYTHON_SNIPPET =
-  'import sys\n' +
-  'from pdf2docx import Converter\n' +
-  'c = Converter(sys.argv[1])\n' +
-  'c.convert(sys.argv[2])\n' +
-  'c.close()\n';
+const SCRIPT = path.resolve(__dirname, '..', '..', '..', 'python', 'pdf_to_docx.py');
 
 async function process(job, { config, jobstore, logger }) {
-  const { jobId, inputs } = job.data;
-  const input = inputs[0];
-  const outDir = await ensureOutDir(config, jobId);
-  const outputPath = path.join(outDir, renameExt(path.basename(input.path), '.docx'));
+  const { jobId, files } = job;
+  const input = files[0];
+  const outDir = await outDirFor(config, jobId);
+  const outputPath = path.join(outDir, 'result.docx');
 
   await jobstore.setProgress(jobId, PROGRESS.CONVERTING);
   try {
-    await exec.run('python3', ['-c', PYTHON_SNIPPET, input.path, outputPath], {
-      timeoutMs: config.jobTimeoutMs,
+    await exec.run('python3', [SCRIPT, input.path, outputPath], {
+      timeoutMs: config.retry.S2.timeoutMs,
+      memoryLimitKb: config.engineMemoryLimitKb,
     });
-    await fileSize(outputPath); // throws if pdf2docx silently produced nothing
   } catch (err) {
-    logger.error('pdf2docx failed', { jobId, error: err.message, stderr: err.stderr });
-    throw new ConversionError(
-      err.timedOut
-        ? 'Conversion timed out — the PDF may be too large or complex.'
-        : 'This PDF could not be converted — it may be scanned or image-based.',
-    );
+    logger.error('pdf2docx failed', { jobId, timedOut: Boolean(err.timedOut), exitCode: err.exitCode });
+    if (/no extractable text/i.test(String(err.stderr || ''))) {
+      throw conversionError(
+        'CORRUPT_INPUT',
+        'This PDF has no extractable text — it looks like a scan. Converting a scan needs OCR, which we do not offer yet.',
+      );
+    }
+    throw fromEngineFailure(err, {
+      timeoutMessage: 'Conversion timed out — this PDF may be very long or very complex.',
+      failureMessage: 'This PDF could not be converted to Word.',
+    });
+  }
+
+  const warnings = [];
+  if (input.pages && input.pages > 50) {
+    warnings.push('Long documents often need some tidying up in Word — check the tables and page breaks.');
   }
 
   return {
     outputPath,
-    outputName: renameExt(input.originalName, '.docx'),
-    size: await fileSize(outputPath),
+    outputName: renameExt(input.displayName, '.docx'),
+    size: await requireOutput(outputPath, 'This PDF could not be converted to Word.'),
+    warnings,
   };
 }
 
